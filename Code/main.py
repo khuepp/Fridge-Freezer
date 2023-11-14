@@ -1,47 +1,50 @@
-# Bibs allgeimein
+# General libraries
 from machine import Pin, soft_reset
 from time import sleep, sleep_ms
-#import threading
 
-# Bibs Temperatursensor
+# Temperature sensor libraries
 from onewire import OneWire
 from ds18x20 import DS18X20
 
-# Bibs Display
+# Display libraries
 from machine import I2C
 from machine_i2c_lcd import I2cLcd
 
 
-
-# ---Relais---
+# ---Relay---
 relais = Pin(14, Pin.OUT)
 
-# ---Schalter---
-schalter = Pin(10, Pin.IN, Pin.PULL_DOWN)
-# Alter Zustand Schalter Variable
-if (schalter.value()==1):schalter_old = 0
-else:schalter_old = 1
-
-# ---Temperatur---
-# Initialisierung GPIO, OneWire und DS18B20
-one_wire_bus = Pin(16)
-sensor_ds = DS18X20(OneWire(one_wire_bus))
-# One-Wire-Geräte ermitteln
-devices = sensor_ds.scan()
-# temp
+# ---Switch---
+switch = Pin(10, Pin.IN, Pin.PULL_DOWN)
+# Old state switch variable
+if (switch.value()==1):switch_state = 0
+else:switch_state = 1
+# 0 = freeze; 1 = refrigerate
 
 # ---Display---
-# Initialisierung I2C
+# Initializing I2C
 i2c = I2C(1, sda=Pin(2), scl=Pin(3), freq=400000)
-# Initialisierung LCD über I2C
+# Initializing LCD via I2C
 lcd = I2cLcd(i2c, 0x27, 2, 16)
-# Text in Zeilen
+# Text in lines
 sleep(1)
+lcd.clear()
+lcd.putstr("Starting")
+sleep(2)
+lcd.clear()
 
-reset = 0
+# ---Temperature---
+# Initializing GPIO, OneWire, and DS18B20
+one_wire_bus = Pin(16)
+sensor_ds = DS18X20(OneWire(one_wire_bus))
+lcd.putstr(str(sensor_ds))
+sleep(3)
+lcd.clear()
+# Detecting One-Wire devices
+devices = sensor_ds.scan()
 
 
-def temperatur():
+def temperature():
     sensor_ds.convert_temp()
     sleep_ms(750)
     for device in devices:
@@ -56,77 +59,73 @@ def temperatur():
     return temp
 
 
-def kuehlen():
-    global reset
+def refrigerate():
     print("Modus: Kühlen")
-    temp = temperatur()
+    temp = temperature()
     
     if temp > 8:
         if relais.value() == 0:
-            print("Relais an")
             for i in range(60):
                 print(i)
-                temperatur()
+                temperature()
+                if(switch.value()==0):return
                 sleep(1)
             relais.on()
-            reset = reset + 1
-            
     elif temp < 6:
         if relais.value() == 1:
             print("Relais aus")
             for i in range(300):
                 print(i)
-                temperatur()
+                temperature()
+                if(switch.value()==0):return
                 sleep(1)
             relais.off()
-            reset = reset + 5
+    else:
+        sleep(1)
 
-def frieren():
-    global reset
-    print("Modus: Friefen")    
-    temp = temperatur()
+def freeze():
+    print("Modus: Frieren")    
+    temp = temperature()
     if temp > -17:
         if relais.value() == 0:
             print("Relais an")
             for i in range(60):
                 print(i)
-                temperatur()
+                temperature()
+                if(switch.value()==1):return
                 sleep(1)
             relais.on()
-            reset = reset + 1
-
     elif temp < -19:
         if relais.value() == 1:
             print("Relais aus")
             for i in range(300):
                 print(i)
-                temperatur()
+                temperature()
+                if(switch.value()==1):return
                 sleep(1)
             relais.off()
-            reset = reset + 5
-
-
-while True:
-    if reset>60:
-        reset = 0
-        soft_reset()
-        
-    if(schalter.value()==1):
-        if(schalter_old == 0):
-            lcd.move_to(0,0)
-            lcd.putstr("               ")
-            lcd.move_to(0,0)
-            lcd.putstr("Kuehlschrank" + "\n" + "Temp:")
-            schalter_old = 1
-        kuehlen()
     else:
-        if(schalter_old ==1):
+        sleep(1)
+
+while True:       
+    if(switch.value()==1):
+        if(switch_state == 0):
             lcd.move_to(0,0)
             lcd.putstr("               ")
             lcd.move_to(0,0)
-            lcd.putstr("Gefrierschrank" + "\n" + "Temp:")
-            schalter_old = 0
-        frieren()
+            #lcd.putstr("Kuehlschrank" + "\n" + "    Temp:")
+            lcd.putstr("Kuehlschrank    Temp:")
+
+            switch_state = 1
+        refrigerate()
+    else:
+        if(switch_state ==1):
+            lcd.move_to(0,0)
+            lcd.putstr("               ")
+            lcd.move_to(0,0)
+            lcd.putstr("Gefrierschrank  Temp:")
+            switch_state = 0
+        freeze()
 
 
 
