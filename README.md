@@ -12,6 +12,8 @@ This project transforms a standard freezer into a digitally temperature-controll
 ## Setup and Installation
 1. **Hardware Assembly:**
    - Connect the DS18B20 temperature sensor, I2C LCD, relay, and switch to the Raspberry Pi Pico according to the provided schematics. If you choose different GPIO-Pins, adjust the code respectively.
+     Default GPIO-Usage:
+     ![Default GPIO-Usage:](GpioRPiPicoUsage.jpg)
    - Ensure the built-in thermostat of the freezer is set to its highest setting.
 
 2. **Software Setup:**
